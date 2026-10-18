@@ -1,6 +1,5 @@
 import type { Artwork } from "./logic";
 import { readStorage, writeStorage } from "./storage";
-import { getElement } from "./dom";
 import { makeDraggable, setTopZ } from "./draggable";
 
 // TIPOS Y CONSTANTES
@@ -18,9 +17,7 @@ const DEFAULT_WIDTH = 150;
 
 
 // FUNCIONES QUE USA main.ts
-export function renderCollage(artworks: Artwork[]): void {
-     const board = getBoard();
-
+export function renderCollage(board: HTMLElement, artworks: Artwork[]): void {
      if(artworks.length === 0){
           board.replaceChildren(createEmptyMessage());
           return;
@@ -28,11 +25,11 @@ export function renderCollage(artworks: Artwork[]): void {
 
      const layout = getLayout();
      setTopZ(Object.values(layout).reduce((max, piece) => Math.max(max, piece.z), 1));
-     board.replaceChildren(...artworks.map((art, index) => createPiece(art, layout[art.id] ?? defaultLayout(index))));
+     board.replaceChildren(...artworks.map((art, index) => createPiece(board, art, layout[art.id] ?? defaultLayout(index))));
 }
 
-export function saveCollage(): void {
-     const pieces = [...getBoard().querySelectorAll<HTMLElement>(".piece")];
+export function saveCollage(board: HTMLElement): void {
+     const pieces = [...board.querySelectorAll<HTMLElement>(".piece")];
      const layout: Layout = Object.fromEntries(pieces.map((piece) => [piece.dataset.id ?? "", readLayout(piece)]));
      writeStorage(STORAGE_KEY, layout);
 }
@@ -40,7 +37,7 @@ export function saveCollage(): void {
 
 
 // CREAR ELEMENTOS
-function createPiece(art: Artwork, layout: PieceLayout): HTMLElement {
+function createPiece(board: HTMLElement, art: Artwork, layout: PieceLayout): HTMLElement {
      const piece = document.createElement("div");
      piece.className = "piece";
      piece.dataset.id = String(art.id);
@@ -55,7 +52,7 @@ function createPiece(art: Artwork, layout: PieceLayout): HTMLElement {
      img.draggable = false;
 
      piece.append(img);
-     makeDraggable(piece, saveCollage);
+     makeDraggable(piece, () => saveCollage(board));
      return piece;
 }
 
@@ -111,14 +108,3 @@ function getLayout(): Layout {
      );
      return Object.fromEntries(valid);
 }
-
-
-
-// UTILIDADES
-function getBoard(): HTMLDivElement {
-     return getElement<HTMLDivElement>("#collage #board");
-}
-
-
-
-

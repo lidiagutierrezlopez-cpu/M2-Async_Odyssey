@@ -24,15 +24,17 @@ Galería web que permite explorar la colección del Museo de Arte de Cleveland a
 - Si se lanza una búsqueda nueva mientras otra se está pidiendo, la petición antigua se cancela con 'AbortController'. Además, se comprueba que la respuesta corresponde a la búsqueda actual antes de mostrarla.
 - Un fallo al pedir más obras no borra las que ya se muestran, sino que aparece un aviso y se puede volver a intentar.
 - Cada petición tiene un tiempo máximo de 10 segundos con 'AbortSignal.timeout'.
-- Las peticiones canceladas se reconecen como AbortError, y se ignoran porque no son un fallo.
+- Las peticiones canceladas se reconocen como AbortError, y se ignoran porque no son un fallo.
 - 'Cargar más' usa su propio 'AbortController', así que nunca cancela una búsqueda en curso.
+- Los errores se traducen a mensaje comprensibles, y el error original se guarda en 'cause'.
 
 ### Transformación de datos
 - Los datos de la API se convierten en 'Artwork' con 'flatMap', que descarta las obras sin imagen y transforma las demás. 
 - La ordenación usa 'toSorted()' para no mutar el array original y poder volver al orden de relevancia.
 - Los tipos únicos para el filtro y el número de artistas distintos se obtienen con un 'Set'.
 - Los títulos y los tipos se ordenan con 'localeCompare(..., "es")' para que funcione con acentos y eñes.
-- En el collage se usa 'Object.fromEntries' para guardar las posiciones y 'reduce' para calcular qué obra está más arriba.
+- En el collage se usa 'Object.fromEntries' para guardar las posiciones, y otro 'reduce' para calcular qué obra está más arriba.
+- Las obras se agrupan y se cuentan por tipo con reduce, para mostrar en el resumen el tipo más frecuente de esa busqueda.
 
 ### Robustez
 - Si la respuesta no trae un array de obras, se trata como una búsqueda vacía para no romper la app.
@@ -43,6 +45,7 @@ Galería web que permite explorar la colección del Museo de Arte de Cleveland a
 - Los favoritos y las posiciones del collage leídos de 'localStorage' se validan uno a uno, y los que no tienen el formato correcto se descartan.
 - Si la respuesta no es JSON válido, se muestra un mensaje en vez de un error.
 - Si falta algún elemento en el index.html, la app muestra un error que dice cuál falta.
+- Los datos leídos de la caché también se validan, si no tiene la forma esperada, se ignora y se vuelve a pedir a la API.
 
 ### Seguridad
 - Todo el contenido que llega de la API se inserta con 'textContent', nunca con 'innerHTML', para evitar ataques XSS.

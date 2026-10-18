@@ -34,15 +34,18 @@ const collectionButton = getElement<HTMLButtonElement>("#collection");
 const collageDialog = getElement<HTMLDialogElement>("#collage");
 const openCollageButton = getElement<HTMLButtonElement>("#open-collage");
 const closeCollageButton = getElement<HTMLButtonElement>("#close-collage");
+const board = getElement<HTMLDivElement>("#collage #board");
 
 
 
 // ESTADO DE LA APP
-let currentQuery = "";
-let currentArtworks: Artwork[] = [];
-let nextSkip = 0;
-let viewingCollection = false;
-let fromCache = false;
+const estado = {
+     query: "",
+     artworks: [] as Artwork[],
+     nextSkip: 0,
+     viewingCollection: false,
+     fromCache: false,
+}
 let controller = new AbortController();
 let moreController = new AbortController();
 
@@ -50,21 +53,21 @@ let moreController = new AbortController();
 
 // PINTAR
 function update(): void {
-     const filtered = filterByType(currentArtworks, typeSelect.value);
+     const filtered = filterByType(estado.artworks, typeSelect.value);
      const sorted = sortArtworks(filtered, sortSelect.value);
      const favoriteIds = new Set(getFavorites().map((a) => a.id));
-     const emptyText = viewingCollection ? "Tu colección está vacía. Pulsa 🤍 en una obra para guardarla." : "No hay obras para esta búsqueda.";
-     const text = summary(sorted) + (fromCache && !viewingCollection ? " · desde caché": "");
+     const emptyText = estado.viewingCollection ? "Tu colección está vacía. Pulsa 🤍 en una obra para guardarla." : "No hay obras para esta búsqueda.";
+     const text = summary(sorted) + (estado.fromCache && !estado.viewingCollection ? " · desde caché": "");
      showArtworks(sorted, text, favoriteIds, onToggleFavorite, emptyText);
 }
 
 function resetView(query: string, collection: boolean): void {
-     viewingCollection = collection;
-     currentQuery = query;
-     currentArtworks = [];
-     nextSkip = 0;
+     estado.viewingCollection = collection;
+     estado.query = query;
+     estado.artworks = [];
+     estado.nextSkip = 0;
      typeSelect.value = "all";
-     fromCache = false;
+     estado.fromCache = false;
      controller.abort();
      moreController.abort();
      renderRooms(ROOMS, query, pickRoom);
@@ -72,12 +75,12 @@ function resetView(query: string, collection: boolean): void {
 }
 
 function addResults(result: SearchResult): void {
-     fromCache = result.fromCache;
-     nextSkip += result.artworks.length;
-     const existingIds = new Set(currentArtworks.map((a) => a.id));
+     estado.fromCache = result.fromCache;
+     estado.nextSkip += result.artworks.length;
+     const existingIds = new Set(estado.artworks.map((a) => a.id));
      const newArtworks = toArtworks(result.artworks).filter((a) => !existingIds.has(a.id));
-     currentArtworks = [...currentArtworks, ...newArtworks];
-     fillTypeOptions(getTypes(currentArtworks));
+     estado.artworks = [...estado.artworks, ...newArtworks];
+     fillTypeOptions(getTypes(estado.artworks));
      update();
      setMoreButton(result.artworks.length < PAGE_SIZE ? "hidden" : "ready");
 }
@@ -92,26 +95,26 @@ async function load(query: string): Promise<void> {
      try{
           controller = new AbortController();
           const result = await searchArtworks(query, 0, controller.signal);
-          if (query !== currentQuery) return;
+          if (query !== estado.query) return;
           addResults(result);
      } catch (error){
-          if(isAbortError(error) || query !== currentQuery) return;
+          if(isAbortError(error) || query !== estado.query) return;
           showError(errorMessage(error), () => load(query));
      }
 }
 
 async function loadMore(): Promise<void> {
-     const query = currentQuery;
+     const query = estado.query;
      setMoreButton("loading");
 
      try {
           moreController.abort();
           moreController = new AbortController();
-          const result = await searchArtworks(query, nextSkip, moreController.signal);
-          if (query !== currentQuery) return;
+          const result = await searchArtworks(query, estado.nextSkip, moreController.signal);
+          if (query !== estado.query) return;
           addResults(result);
      } catch (error) {
-          if(isAbortError(error) || query !== currentQuery) return;
+          if(isAbortError(error) || query !== estado.query) return;
           showWarning(`No se pudieron cargar más obras. ${errorMessage(error)}`);
           setMoreButton("ready");
      }
@@ -140,14 +143,14 @@ function pickRoom(query: string): void {
 function showCollection(): void {
      resetView("", true);
      input.value = "";
-     currentArtworks = getFavorites();
-     fillTypeOptions(getTypes(currentArtworks));
+     estado.artworks = getFavorites();
+     fillTypeOptions(getTypes(estado.artworks));
      update();     
 }
 
 function onToggleFavorite(art: Artwork): void {
      toggleFavorite(art);
-     if (viewingCollection) currentArtworks = getFavorites();
+     if (estado.viewingCollection) estado.artworks = getFavorites();
      update();
 }
 
@@ -155,7 +158,7 @@ function onToggleFavorite(art: Artwork): void {
 
 // COLLAGE
 function openCollage(): void {
-     renderCollage(getFavorites());
+     renderCollage(board, getFavorites());
      collageDialog.showModal();
 }
 
@@ -180,7 +183,7 @@ moreButton.addEventListener("click", loadMore);
 collectionButton.addEventListener("click", showCollection);
 openCollageButton.addEventListener("click", openCollage);
 closeCollageButton.addEventListener("click", () => collageDialog.close())
-collageDialog.addEventListener("close", saveCollage);
+collageDialog.addEventListener("close", () => saveCollage(board));
 
 initTheme(getElement<HTMLButtonElement>("#theme"));
 load(DEFAULT_QUERY);

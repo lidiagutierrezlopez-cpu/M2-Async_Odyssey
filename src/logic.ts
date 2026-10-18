@@ -1,4 +1,5 @@
 import type { RawArtwork } from "./api";
+import { toPlainText } from "./html-text";
 
 // MODELO PROPIO DE LA APP
 export interface Artwork{
@@ -37,21 +38,19 @@ export function toArtworks(raw: RawArtwork[]): Artwork[] {
      });
 }
 
-// Las descripciones vienen en HTML, con <br>, <i>, ... Lo convierto en texto plano
-function toPlainText(html: string | null): string | null {
-     if (!html) return null;
-     const withBreaks = html.replace(/<br\s*\/?>/gi, "\n");
-     const doc = new DOMParser().parseFromString(withBreaks, "text/html");
-     const text = doc.body.textContent?.trim() ?? "";
-     return text || null;
-}
-
 
 
 // OPERACIONES SOBRE LA LISTA
 export function summary(list: Artwork[]): string {
      const artists = new Set(list.map((a) => a.artist));
-     return `${list.length} obras de ${artists.size} artistas`;
+     const [topType] = Object.entries(countByType(list)).reduce(
+          (best, current) => (current[1] > best[1] ? current : best),
+          ["", 0] as [string, number],
+     );
+
+     const parts = [`${list.length} obras`, `${artists.size} artistas`];
+     if (topType) parts.push(`sobre todo ${topType.toLowerCase()}`);
+     return parts.join(" · ");
 }
 
 export function getTypes(list: Artwork[]): string[] {
@@ -72,3 +71,9 @@ export function sortArtworks(list: Artwork[], order: string): Artwork[] {
      return list;
 }
 
+export function countByType(list: Artwork[]): Record<string, number>{
+     return list.reduce<Record<string, number>>((counts, art) => {
+          counts[art.type] = (counts[art.type] ?? 0) + 1;
+          return counts;
+     }, {});
+}

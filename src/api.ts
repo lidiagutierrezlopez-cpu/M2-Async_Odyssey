@@ -37,8 +37,10 @@ export interface SearchResult{
 // PETICIÓN
 export async function searchArtworks(query: string, skip: number, signal?: AbortSignal): Promise<SearchResult> {
      const cacheKey = `busqueda:${query.toLowerCase()}:${skip}`;
-     const cached = getCache<RawArtwork[]>(cacheKey, CACHE_MAX_AGE);
-     if (Array.isArray(cached)) return { artworks: cached, fromCache: true };
+     const cached = getCache<unknown>(cacheKey, CACHE_MAX_AGE);
+     if (Array.isArray(cached) && cached.every(isRawArtwork)) {
+          return { artworks: cached, fromCache: true };
+     }
 
      const params = new URLSearchParams({
           q: query,
@@ -76,4 +78,8 @@ async function fetchJSON (url: string, signal?: AbortSignal): Promise<unknown> {
      } catch (error){
           throw new Error("El museo ha devuelto una respuesta que no se puede leer.", {cause: error});
      }
+}
+
+function isRawArtwork(value: unknown): value is RawArtwork {
+     return typeof value === "object" && value !== null && typeof (value as RawArtwork).id === "number";
 }
